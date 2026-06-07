@@ -1601,7 +1601,14 @@ def _load_proc_meta(run_id: str) -> Optional[dict]:
 
 
 def _list_active_runs() -> list[dict]:
-    """Walk reports/ for any .proc.json with a still-alive PID."""
+    """Walk reports/ for any .proc.json with a still-alive PID.
+
+    报告（run_report.json）已生成的 run 视为已完成，并清理掉它的
+    .proc.json，避免：
+    - Streamlit Cloud 等容器环境下子进程退出后变 zombie，被 `kill(pid, 0)`
+      误判成 alive，让 UI 永远把它列在「运行中」面板。
+    - 容器重启后旧 PID 被新进程复用，造成误判。
+    """
     active: list[dict] = []
     if not REPORTS_ROOT.exists():
         return active
@@ -1610,6 +1617,13 @@ def _list_active_runs() -> list[dict]:
             meta = json.loads(proc_file.read_text(encoding="utf-8"))
         except Exception:
             continue
+        run_dir = proc_file.parent
+        if (run_dir / "run_report.json").exists():
+            try:
+                proc_file.unlink()
+            except OSError:
+                pass
+            continue
         if _pid_alive(int(meta.get("pid", 0))):
             active.append(meta)
     return active
@@ -1617,15 +1631,37 @@ def _list_active_runs() -> list[dict]:
 
 _PROGRESS_RE = re.compile(r"(\d+)\s*/\s*(\d+)")
 _TOTAL_CASES_RE = re.compile(r"Total cases to evaluate:\s*(\d+)")
+# 这些关键词出现在汇总/失败统计行里（例如「Case 通过率: 15.0% (3/20)」），
+# 它们里面的 X/Y 数字不是真实进度，必须从进度解析中排除。
+_PROGRESS_NOISE_KEYWORDS = (
+    "通过率",
+    "成功率",
+    "失败率",
+    "Pass rate",
+    "Success rate",
+    "通过：",
+    "通过:",
+    "失败：",
+    "失败:",
+)
 
 
 def _parse_progress(log_text: str) -> tuple[int, int]:
-    """Pull the most recent (done, total) from rich progress lines."""
-    matches = _PROGRESS_RE.findall(log_text)
-    if not matches:
+    """Pull the most recent (done, total) from rich progress lines.
+
+    日志末尾会写入「Case 通过率: 15.0% (3/20)」一类的统计行，里面也有
+    X/Y，原先直接取最后一个匹配会把进度卡在通过数上。这里逐行扫描并
+    跳过明显的统计噪声行，再取最后一次出现。
+    """
+    candidates: list[tuple[int, int]] = []
+    for line in log_text.splitlines():
+        if any(noise in line for noise in _PROGRESS_NOISE_KEYWORDS):
+            continue
+        for done, total in _PROGRESS_RE.findall(line):
+            candidates.append((int(done), int(total)))
+    if not candidates:
         return 0, 0
-    done, total = matches[-1]
-    return int(done), int(total)
+    return candidates[-1]
 
 
 @dataclass(frozen=True)

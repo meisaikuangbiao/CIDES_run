@@ -5,14 +5,17 @@ from src.core.real_dialogue_importer import load_real_dialogues
 from src.webui.app import (
     EVAL_ENV_GENERATED,
     EVAL_ENV_REAL,
+    REPORTS_ROOT,
     _build_raw_dialogue_export,
     _compact_report_html,
     _filter_runs_for_env,
     _format_case_display,
     _latest_log_excerpt,
+    _list_active_runs,
     _nav_keys_for_env,
     _page_for_env,
     _page_map_for_env,
+    _parse_progress,
     _should_apply_query_env,
     _should_apply_query_page,
     _summarize_active_run,
@@ -340,3 +343,48 @@ def test_latest_log_excerpt_keeps_recent_signal_and_skips_long_prompt_noise(tmp_
     assert "receive_response_body.complete" in excerpt
     assert "retrying transient failure" in excerpt
     assert "很长的prompt" not in excerpt
+
+
+def test_parse_progress_ignores_pass_rate_summary_lines() -> None:
+    """日志末尾的『Case 通过率: 15.0% (3/20)』不应被当成进度，否则
+    会把已完成 20/20 的 run 在 UI 上卡在 3/20。"""
+    log = "\n".join(
+        [
+            "Total cases to evaluate: 20 (workers=4)",
+            "Evaluating cases ━━━━━━━━━━━━━━━━━━━━ 20/20 100%",
+            "Case 通过率: 15.0% (3/20)",
+            "通过：3 / 失败：17",
+        ]
+    )
+
+    done, total = _parse_progress(log)
+
+    assert (done, total) == (20, 20)
+
+
+def test_list_active_runs_excludes_runs_with_finished_report(tmp_path, monkeypatch) -> None:
+    """报告（run_report.json）已生成的 run 必须从『运行中』面板移除，
+    并清理 .proc.json，否则 zombie 子进程会让 UI 一直显示运行中。"""
+    fake_reports = tmp_path / "reports"
+    finished_run = fake_reports / "webui_finished"
+    finished_run.mkdir(parents=True)
+    (finished_run / ".proc.json").write_text(
+        json.dumps(
+            {
+                "pid": 99999999,
+                "cmd": ["python"],
+                "log_path": str(finished_run / "webui_eval.log"),
+                "run_id": "webui_finished",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (finished_run / "run_report.json").write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr("src.webui.app.REPORTS_ROOT", fake_reports)
+
+    active = _list_active_runs()
+
+    assert active == []
+    assert not (finished_run / ".proc.json").exists(), \
+        "已完成 run 的 .proc.json 应被清理，避免下次再被误判为运行中"
