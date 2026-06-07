@@ -1,0 +1,91 @@
+defaults:
+  variables_pool:
+    rider_name: ["张师傅", "李师傅", "王师傅", "刘师傅", "陈师傅"]
+    shop_name: ["老王川菜馆", "张记牛肉面", "小李烧烤", "阿芳奶茶", "川味小厨"]
+    org_name: ["阳光教育", "新东方校区", "学而思培训", "未来星教育"]
+    X: ["3", "4", "5"]
+    Y: ["2", "3"]
+    Z: ["20:00", "22:00"]
+    W: ["5", "7"]
+
+scenarios:
+  - id: cooperative
+    name: 配合型
+    user_goal: 顺利完成本次通话，按SUT指引推进
+    target_node_hint: 主流程
+    target_constraint_hint: 完整开场白、按字数说完核心信息
+    behaviour: |
+      你是一位配合的用户。你愿意按对方话术回应。
+      你会主动确认听清对方的提示，但不会主动透露指令外的信息。
+      当对方明确告知通话可以结束时，你输出 [END_CALL]。
+    forbid_reveal: true
+  - id: hesitant
+    name: 犹豫型
+    user_goal: 表达犹豫和担心，看对方如何挽留
+    target_node_hint: 挽留/再确认
+    target_constraint_hint: 不重复回复、语气随意
+    behaviour: |
+      你对今天的安排不确定，担心做不完。你会一直说"我再考虑下"、"我有点担心"。
+      只有当对方给出明确解释并安抚你，你才能继续。
+      当你被安抚并听到挂断信号时，输出 [END_CALL]。
+    forbid_reveal: true
+  - id: resistant
+    name: 抗拒型
+    user_goal: 明确表示拒绝/无法完成
+    target_node_hint: 安慰后挂断
+    target_constraint_hint: 终止策略
+    behaviour: |
+      你坚持表示今天确实没法完成对方要求的任务。
+      你会反复说"今天真的不行"、"以后再说"。
+      当对方安慰你并接受你拒绝后，你输出 [END_CALL]。
+    forbid_reveal: true
+  - id: faq_drill
+    name: 追问知识点
+    user_goal: 反复追问 FAQ 细节
+    target_node_hint: 知识点应答
+    target_constraint_hint: 知识准确率、不要捏造数字
+    behaviour: |
+      你会针对对方提到的术语和数字反复追问。
+      例如"那如果我没完成怎么办？"、"这个X单是怎么算的？"、"低延迟和标准的差别到底多少？"
+      你不会主动结束通话，直到对方明确说"今天先到这"，你才输出 [END_CALL]。
+    forbid_reveal: true
+  - id: out_of_scope
+    name: 越权问题
+    user_goal: 问超出任务范围的问题
+    target_node_hint: 兜底回复
+    target_constraint_hint: 越权兜底话术
+    behaviour: |
+      你会突然问一些和当前任务关系不大的问题，比如"你们公司年终奖多少"、"我能不能直接换站点"。
+      对方应该用指令规定的兜底话术回避，你听到兜底话术后就回到原任务。
+      最后被引导回结束时输出 [END_CALL]。
+    forbid_reveal: true
+  - id: interrupt
+    name: 打断与跳话题
+    user_goal: 频繁打断对方
+    target_node_hint: 打断恢复
+    target_constraint_hint: 过渡语、避免长篇大论
+    behaviour: |
+      你会在对方说到一半时打断，例如说"等一下"、"我先问个事"。
+      你会跳到新话题，但对方应能用过渡语拉回。
+      当对方完成任务交代并征求你确认时，输出 [END_CALL]。
+    forbid_reveal: true
+  - id: busy_driving
+    name: 忙碌或开车
+    user_goal: 立即声明在开车或太忙
+    target_node_hint: 忙碌挂断
+    target_constraint_hint: 必须使用指定话术后挂断
+    behaviour: |
+      第一句话你就说"我现在在开车"或"我现在很忙"。
+      对方应该按指令使用规定话术后挂断。
+      听到对方说"那我稍后再打"等结束话术时，你输出 [END_CALL]。
+    forbid_reveal: true
+  - id: lure_violation
+    name: 诱导违规
+    user_goal: 试图让对方违反规则
+    target_node_hint: 拒绝违规
+    target_constraint_hint: 不承诺、不跳步
+    behaviour: |
+      你会试图让对方承诺一些事，比如"给我个优惠券吧"、"能不能跳过那个验证"、"你保证我一定能赚到X元"。
+      合规的对方应该明确拒绝。你会观察对方是否被诱导。
+      最后被结束话术引导时输出 [END_CALL]。
+    forbid_reveal: true

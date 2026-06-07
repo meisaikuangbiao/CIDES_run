@@ -1,0 +1,16 @@
+{
+  "case_id": "1__cooperative",
+  "trace_path": "traces/smoke_cli/1__cooperative.json",
+  "labeller": "demo-human",
+  "labelled_at": "2026-05-22",
+  "human_labels": {
+    "gsr": {"passed": false, "rationale": "stub SUT 仅给出开场白和重复回复，未覆盖核心通知信息"},
+    "pcr": {"passed": false, "rationale": "S2/S3/S4 节点的核心信息均未提及"},
+    "bca": {"passed": true},
+    "kar": {"passed": true, "rationale": "用户未触发 FAQ"},
+    "hcr": {"passed": false, "rationale": "开场白 82 字超过 30 字限制"},
+    "scr": {"passed": false, "rationale": "出现重复回复"},
+    "ter": {"passed": true}
+  },
+  "notes": "示例样本：用于演示标注格式"
+}

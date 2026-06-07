@@ -1,0 +1,55 @@
+# === Python ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# === Virtual envs ===
+.venv/
+venv/
+env/
+
+# === Secrets（绝对不要提交）===
+.env
+.env.local
+.streamlit/secrets.toml
+
+# === Runtime artifacts（每次 run 自动生成，不需要进仓库）===
+reports/
+traces/
+data/.llm_cache/
+.cache/
+*.log
+*.sqlite
+*.sqlite3
+
+# === Editor / IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Cursor / 临时调试产物 ===
+# Cursor 自动导出的对话记录
+cursor_*.md
+# 终端输出快照（项目根目录下的纯数字命名 txt）
+/[0-9]*.txt
+# UI 上传 / 导出的对话样本（核心样例放在 data/ 下，根目录的是测试残留）
+/tune_v*_raw_dialogues*.json
+/webui_*_raw_dialogues*.json
+
+# === Build artifacts ===
+build/
+dist/
+*.egg-info/
+
+# === 参赛文档 PDF（保留 .md 源文件即可，PDF 太大不进仓库）===
+/参赛文档.pdf
+/参赛文档_CIDES.pdf

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>对话指令评测报告 · {{ run_report.run_id }}</title>
+  <script src="https://cdn.plot.ly/plotly-2.30.0.min.js" charset="utf-8"></script>
+  <style>
+    :root {
+      --primary: #2256d3;
+      --bg-soft: #f6f8fb;
+      --border: #e3e7ef;
+      --pass: #1c8a4f;
+      --fail: #c0392b;
+      --warn: #c47f17;
+    }
+    body { font-family: "PingFang SC", "Microsoft YaHei", Arial, sans-serif; background: var(--bg-soft); margin: 0; padding: 0; color: #222; }
+    header { background: var(--primary); color: #fff; padding: 18px 28px; }
+    header h1 { margin: 0; font-size: 22px; }
+    header .meta { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+    main { padding: 18px 28px; }
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; }
+    .card h2 { margin: 0 0 12px 0; font-size: 16px; color: var(--primary); }
+    .kpi-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+    .kpi { background: var(--bg-soft); border-radius: 6px; padding: 8px 12px; min-width: 120px; }
+    .kpi label { display: block; font-size: 12px; color: #666; }
+    .kpi value { font-size: 20px; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+    th { background: var(--bg-soft); font-weight: 600; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+    .pill.pass { background: #e6f5ec; color: var(--pass); }
+    .pill.fail { background: #fbeaea; color: var(--fail); }
+    .pill.warn { background: #fbf2dd; color: var(--warn); }
+    details { margin-bottom: 8px; }
+    details summary { cursor: pointer; padding: 6px 8px; background: var(--bg-soft); border-radius: 4px; font-weight: 500; }
+    .case { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; }
+    .case header { background: transparent; color: #222; padding: 0; margin-bottom: 8px; }
+    .case header h3 { margin: 0; font-size: 15px; }
+    .turns { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+    .turn { display: grid; grid-template-columns: 72px 1fr; gap: 6px; align-items: start; padding: 3px 6px; border-radius: 5px; background: var(--bg-soft); line-height: 1.35; }
+    .turn.assistant { border-left: 3px solid var(--primary); }
+    .turn.user { border-left: 3px solid #888; }
+    .turn .who { font-weight: 600; color: var(--primary); font-size: 12px; line-height: 1.35; }
+    .turn.user .who { color: #666; }
+    .turn .body { font-size: 13px; line-height: 1.35; }
+    .turn .body > div { margin: 0; }
+    .turn-text { white-space: pre-wrap; }
+    .violations { font-size: 12px; color: var(--fail); margin-top: 2px; line-height: 1.35; }
+    .ci { font-size: 12px; color: #666; }
+    .pcr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 8px; margin-top: 6px; }
+    .pcr-item { background: var(--bg-soft); padding: 6px 8px; border-radius: 6px; font-size: 12px; }
+    .pcr-item.pass { border-left: 3px solid var(--pass); }
+    .pcr-item.fail { border-left: 3px solid var(--fail); }
+    .footer { margin-top: 24px; font-size: 12px; color: #888; text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>复杂指令多轮对话评测报告</h1>
+    <div class="meta">
+      Run ID: <strong>{{ run_report.run_id }}</strong> ·
+      生成于 {{ run_report.created_at }} ·
+      Cases: {{ run_report.cases | length }} ·
+      模型: SUT={{ run_report.config.get('models',{}).get('sut','-') }} / Judge={{ run_report.config.get('models',{}).get('judge','-') }} ·
+      后端: SUT={{ run_report.config.get('sut_backend','-') }} / UserSim={{ run_report.config.get('user_sim_backend','-') }} / Judge={{ run_report.config.get('judge_backend','-') }}
+    </div>
+  </header>
+  <main>
+    <section class="summary">
+      <div class="card">
+        <h2>总览</h2>
+        <div class="kpi-row">
+          <div class="kpi"><label>总分（加权均值）</label><value>{{ '{:.3f}'.format(run_report.aggregate.overall_mean) }}</value></div>
+          <div class="kpi"><label>95% 置信区间</label><value>[{{ '{:.3f}'.format(run_report.aggregate.confidence_interval[0]) }}, {{ '{:.3f}'.format(run_report.aggregate.confidence_interval[1]) }}]</value></div>
+          <div class="kpi"><label>评测样本数</label><value>{{ run_report.aggregate.n_cases }}</value></div>
+          {% set qg = run_report.aggregate.get('quality_gates', {}) %}
+          {% if qg %}
+          <div class="kpi"><label>质量门禁</label><value>{{ '通过' if qg.get('passed') else '需复核' }}</value><div class="ci">低置信 {{ qg.get('low_confidence_count', 0) }} · 警告 {{ qg.get('fallback_or_warning_count', 0) }} · 分歧 {{ qg.get('high_disagreement_count', 0) }}</div></div>
+          {% endif %}
+        </div>
+        <div class="ci">
+          seed={{ run_report.config.get('seed','-') }} · max_turns={{ run_report.config.get('max_turns','-') }} ·
+          judge_samples={{ run_report.config.get('judge_samples','-') }} · require_evidence={{ run_report.config.get('judge_require_evidence','-') }}
+        </div>
+        <div id="radar" style="height: 320px;"></div>
+      </div>
+      <div class="card">
+        <h2>按指令汇总</h2>
+        <table>
+          <thead><tr><th>指令</th><th>样本</th><th>均值</th><th>最低</th><th>最高</th></tr></thead>
+          <tbody>
+          {% for iid, info in run_report.aggregate.by_instruction.items() %}
+            <tr>
+              <td>{{ iid }}</td>
+              <td>{{ info.n }}</td>
+              <td>{{ '{:.3f}'.format(info.mean) }}</td>
+              <td>{{ '{:.3f}'.format(info.min) }}</td>
+              <td>{{ '{:.3f}'.format(info.max) }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        <h2 style="margin-top: 16px">失败归因 Top-K</h2>
+        <table>
+          <thead><tr><th>指令</th><th>场景</th><th>维度</th><th>规则</th><th>损失</th></tr></thead>
+          <tbody>
+          {% for f in run_report.aggregate.top_failures %}
+            <tr>
+              <td>{{ f.instruction_id }}</td>
+              <td>{{ f.scenario_id }}</td>
+              <td>{{ f.dim_name or f.dim_id }}</td>
+              <td title="{{ f.rationale }}">{{ f.label }}</td>
+              <td>{{ '{:.3f}'.format(f.weighted_loss) }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% if run_report.aggregate.get('fallback_or_warnings') or run_report.aggregate.get('high_disagreement') %}
+        <h2 style="margin-top: 16px">可靠性提示</h2>
+        <table>
+          <thead><tr><th>类型</th><th>Case</th><th>维度</th><th>说明</th></tr></thead>
+          <tbody>
+          {% for item in run_report.aggregate.get('fallback_or_warnings', []) %}
+            <tr><td>warning</td><td>{{ item.case_id }}</td><td>{{ item.dim_id }}</td><td>{{ '; '.join(item.warnings or [item.source]) }}</td></tr>
+          {% endfor %}
+          {% for item in run_report.aggregate.get('high_disagreement', []) %}
+            <tr><td>disagreement</td><td>{{ item.case_id }}</td><td>{{ item.dim_id }}</td><td>{{ item.label }} · {{ item.disagreement }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
+    </section>
+
+    <section style="margin-top: 24px;">
+      <h2>Case 详情</h2>
+      {% for case in run_report.cases %}
+      <details class="case">
+        <summary>
+          {% if run_report.config.get('run_mode') == 'real_dialogue' %}
+          <strong>对话 {{ case.trace.case_id }} · 任务{{ case.trace.instruction_id }}</strong>
+          {% else %}
+          <strong>{{ case.trace.instruction_id }} · {{ case.trace.scenario_id }}</strong>
+          {% endif %}
+          · 总分 <span class="pill {{ 'pass' if case.weighted_total>=0.85 else ('warn' if case.weighted_total>=0.6 else 'fail') }}">{{ '{:.3f}'.format(case.weighted_total) }}</span>
+          · 终止 {{ case.trace.terminated_by or '-' }}
+        </summary>
+        <div class="kpi-row" style="margin-top: 12px;">
+          {% for dim in case.dimensions %}
+          <div class="kpi">
+            <label>{{ dim.name }} ({{ dim.id }})</label>
+            <value>{{ '{:.3f}'.format(dim.score) }}</value>
+            {% if dim.confidence is not none %}
+            <div class="ci">置信度 {{ '{:.2f}'.format(dim.confidence) }}</div>
+            {% endif %}
+            <div class="ci">来源 {{ dim.source }}</div>
+            {% if dim.warnings %}
+            <div class="ci">警告 {{ dim.warnings|length }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+
+        {% set pcr = case.dimensions|selectattr('id','equalto','pcr')|list|first %}
+        {% if pcr %}
+        <h3 style="margin-top: 12px; font-size: 14px;">路径覆盖详情</h3>
+        <div class="pcr-grid">
+          {% for d in pcr.details %}
+          <div class="pcr-item {{ 'pass' if d.passed else 'fail' }}">
+            <strong>{{ d.label }}</strong>
+            <div>{{ d.rationale }}</div>
+            {% if d.disagreement is not none %}
+            <div class="ci">disagreement={{ '{:.2f}'.format(d.disagreement) }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <h3 style="margin-top: 12px; font-size: 14px;">对话 Trace</h3>
+        <div class="turns">
+          {% for turn in case.trace.turns %}
+          <div class="turn {{ turn.role }}">
+            <div class="who">[{{ '%02d' % turn.index }}] {{ 'SUT' if turn.role == 'assistant' else 'USER' }}</div>
+            <div class="body"><div class="turn-text">{{ turn.content }}</div>
+              {% set turn_violations = case.trace_violations.get(turn.index, []) if case.trace_violations is defined else [] %}
+              {% set vlist = [] %}
+              {% for dim in case.dimensions %}
+                {% for d in dim.details %}
+                  {% if turn.index in d.turn_ids and not d.passed %}
+                    {% set _ = vlist.append('[' ~ dim.id|upper ~ '] ' ~ d.label ~ ' — ' ~ d.rationale) %}
+                  {% endif %}
+                {% endfor %}
+              {% endfor %}
+              {% if vlist %}
+              <div class="violations">
+                {% for v in vlist %}<div>· {{ v }}</div>{% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        {% if case.failure_attribution %}
+        <h3 style="margin-top: 12px; font-size: 14px;">本场景扣分明细</h3>
+        <table>
+          <thead><tr><th>维度</th><th>规则</th><th>扣分</th><th>证据/原因</th></tr></thead>
+          <tbody>
+          {% for f in case.failure_attribution %}
+            <tr>
+              <td>{{ f.dim_name or f.dim_id }}</td>
+              <td>{{ f.label }}</td>
+              <td>{{ '{:.3f}'.format(f.deduction) }}</td>
+              <td>{{ f.evidence_quote or f.rationale }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </details>
+      {% endfor %}
+    </section>
+    <div class="footer">复杂指令多轮对话评测系统 · 自动生成</div>
+  </main>
+  <script>
+    const radarData = {{ radar_data | safe }};
+    Plotly.newPlot('radar', [radarData], {
+      polar: {
+        radialaxis: { visible: true, range: [0, 1] }
+      },
+      showlegend: false,
+      margin: { l: 30, r: 30, t: 10, b: 30 }
+    }, { displayModeBar: false });
+  </script>
+</body>
+</html>

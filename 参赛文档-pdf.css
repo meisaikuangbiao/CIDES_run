@@ -1,0 +1,77 @@
+/* 参赛文档 PDF 导出样式（Markdown PDF 扩展 + gen_pdf.py 共用） */
+
+body {
+  font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  line-height: 1.65;
+  color: #111;
+}
+
+h1 {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #1e40af !important;
+  border-bottom: 2px solid #1e40af;
+  padding-bottom: 8px;
+}
+
+h2 {
+  font-size: 1.35rem;
+  font-weight: bold;
+  color: #1e40af !important;
+  margin-top: 1.6rem;
+}
+
+h3 {
+  font-size: 1.1rem;
+  margin-top: 1.2rem;
+}
+
+p,
+li {
+  font-size: 14px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 12px auto;
+}
+
+/* 行内代码：深蓝、无底色（覆盖扩展默认浅色主题） */
+code {
+  color: #1d4ed8 !important;
+  background: none !important;
+  padding: 0 !important;
+  border: none !important;
+  font-size: 13px;
+}
+
+pre {
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+pre code {
+  color: #1e293b !important;
+  background: transparent !important;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+}
+
+th,
+td {
+  border: 1px solid #cbd5e1;
+  padding: 8px;
+  text-align: left;
+}
+
+th {
+  background: #e2e8f0;
+}

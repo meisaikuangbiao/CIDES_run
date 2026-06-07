@@ -1,0 +1,67 @@
+models:
+  sut: deepseek-v4-flash
+  user_sim: deepseek-v4-flash
+  # 默认全部走 flash（最低成本）；如需更稳的 Judge 判定，传 --judge-model deepseek-v4-pro 即可
+  judge: deepseek-v4-flash
+
+generation:
+  sut_temperature: 0.25
+  user_sim_temperature: 0.7
+  parser_temperature: 0.1
+
+runtime:
+  max_turns: 20
+  # case 级并行：DeepSeek-v4-pro 账户上限 500 并发，远高于这里；按需用 --workers 覆盖
+  workers: 8
+  case_workers: 8
+  # 单 case 内 4 个语义维度 judge 并行（gsr / pcr+bca / scr / kar）
+  judge_workers: 4
+  # 单维度内多采样并行的 worker 数；默认 null 表示自动选择 min(samples, 4)
+  samples_workers: null
+  rate_limit_qps: null
+  # 全局在飞 LLM 请求上限（信号量）；远低于 DeepSeek pro 500 / flash 2500，用于稳态防 429
+  # 设为 0 或 null 表示不限制（不推荐高并发场景使用）
+  max_in_flight: 32
+  seed: 42
+  cache_dir: data/.llm_cache
+  request_timeout: 60
+  max_retries: 3
+
+judge:
+  samples: 3
+  temperature: 0.2
+  require_evidence: true
+  schema_retries: 3
+  # DeepSeek-only：开启后 Judge 走 v4-pro 的 thinking 推理模式（成本更高但更稳）
+  thinking: false
+  reasoning_effort: high
+
+orchestrator:
+  end_call_marker: "[END_CALL]"
+  max_invalid_replies: 3
+  # 未通过时最多续拨次数（1=仅单次通话；2=失败后最多再打 1 次）
+  max_sessions: 2
+  retry_on_fail: true
+
+case_gate:
+  weighted_total: 0.75
+  gsr_min: 0.85
+  hcr_min: 0.80
+  require_hcr_details_pass: true
+
+metrics:
+  weights:
+    gsr: 0.20
+    pcr: 0.20
+    bca: 0.10
+    kar: 0.15
+    hcr: 0.15
+    scr: 0.10
+    ter: 0.05
+    rob: 0.05
+  bootstrap_iters: 200
+  bootstrap_alpha: 0.05
+
+report:
+  top_k_failures: 8
+  include_plotly_inline: true

@@ -1,0 +1,33 @@
+dimensions:
+  - id: gsr
+    name: 目标完成度
+    description: 是否完成本次外呼的业务目标
+    type: llm_judge
+  - id: pcr
+    name: 路径覆盖率
+    description: 用户场景触发的应走路径节点是否覆盖
+    type: llm_judge
+  - id: bca
+    name: 分支条件适配
+    description: 是否按用户回答走正确分支，是否提前泄露不该说的信息
+    type: llm_judge
+  - id: kar
+    name: 知识准确率
+    description: FAQ知识点的覆盖、错误和幻觉
+    type: llm_judge
+  - id: hcr
+    name: 硬约束合规
+    description: 字数、禁用词、强制回复、开场白关键片段、不当承诺
+    type: rule
+  - id: scr
+    name: 软约束合规
+    description: 语气、自然度、重复表达、打断恢复、给用户发言机会
+    type: llm_judge
+  - id: ter
+    name: 终止策略合规
+    description: 忙碌、开车、坚持拒绝、无问题结束等场景是否按指令结束
+    type: hybrid
+  - id: rob
+    name: 稳健性
+    description: 多场景下分数方差、judge 分歧率和置信度
+    type: derived
